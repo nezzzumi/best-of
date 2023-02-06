@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::process;
+use std::process::exit;
 use std::process::Stdio;
 use std::time;
 
@@ -17,23 +18,31 @@ fn execute(program: String, args: &[String]) -> Vec<TimeResult> {
     for _ in 0..EXECUTIONS {
         let now = time::Instant::now();
 
-        let exit_code = process::Command::new(program.clone())
+        let mut command = process::Command::new(program.clone());
+
+        command
             .args(args)
             .stderr(Stdio::null())
-            .stdout(Stdio::null())
-            .status()
-            .unwrap()
-            .code()
-            .unwrap();
+            .stdout(Stdio::null());
 
-        let time_elapsed = now.elapsed();
+        let status = command.status();
 
-        let result = TimeResult {
-            exit_code,
-            time: time_elapsed.as_secs_f32(),
-        };
+        match status {
+            Ok(val) => {
+                let time_elapsed = now.elapsed();
 
-        results.push(result);
+                let result = TimeResult {
+                    exit_code: val.code().unwrap(),
+                    time: time_elapsed.as_secs_f32(),
+                };
+
+                results.push(result);
+            }
+            Err(err) => {
+                eprintln!("error: an error occurred when running the command '{program}': {err}");
+                exit(127)
+            }
+        }
     }
     return results;
 }
